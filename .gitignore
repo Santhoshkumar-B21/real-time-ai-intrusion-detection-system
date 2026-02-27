@@ -1,0 +1,18 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Database
+*.db
+
+# Models (optional if large)
+models/
+*.pkl
+
+# OS
+.DS_Store
+
