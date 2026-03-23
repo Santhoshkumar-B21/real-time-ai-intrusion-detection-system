@@ -2,12 +2,14 @@
 venv/
 __pycache__/
 *.pyc
+environment/
 
 # Node
 node_modules/
 
 # Database
 *.db
+ids_logs.db
 
 # Models (optional if large)
 models/
@@ -15,4 +17,3 @@ models/
 
 # OS
 .DS_Store
-

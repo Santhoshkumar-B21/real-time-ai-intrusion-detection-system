@@ -1,7 +1,12 @@
 import sqlite3
+import os
 
-DB_NAME = "../ids_logs.db"
+# Absolute path (production-safe)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "../ids_logs.db")
 
+
+# ---------------- INITIALIZE DATABASE ----------------
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -20,6 +25,7 @@ def init_db():
     conn.close()
 
 
+# ---------------- INSERT LOG ----------------
 def insert_log(anomaly, attack_type, risk_score):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -31,44 +37,65 @@ def insert_log(anomaly, attack_type, risk_score):
 
     conn.commit()
     conn.close()
-def get_logs():
+
+
+# ---------------- FETCH LOGS (WITH FILTERS) ----------------
+def get_logs(anomaly=None, min_risk=None, attack_type=None):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM attack_logs ORDER BY id DESC")
-    rows = cursor.fetchall()
+    query = """
+        SELECT id, timestamp, anomaly, attack_type, risk_score
+        FROM attack_logs
+        WHERE 1=1
+    """
+    params = []
 
+    if anomaly is not None:
+        query += " AND anomaly = ?"
+        params.append(anomaly)
+
+    if min_risk is not None:
+        query += " AND risk_score >= ?"
+        params.append(min_risk)
+
+    if attack_type is not None:
+        query += " AND attack_type = ?"
+        params.append(attack_type)
+
+    query += " ORDER BY id DESC"
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
     conn.close()
 
-    logs = []
-    for row in rows:
-        logs.append({
+    return [
+        {
             "id": row[0],
             "timestamp": row[1],
             "anomaly": row[2],
             "attack_type": row[3],
-            "risk_score": row[4]
-        })
+            "risk_score": row[4],
+        }
+        for row in rows
+    ]
 
-    return logs
+
+# ---------------- ANALYTICS ----------------
 def get_analytics():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Total logs
     cursor.execute("SELECT COUNT(*) FROM attack_logs")
     total_logs = cursor.fetchone()[0]
 
-    # Total anomalies
     cursor.execute("SELECT COUNT(*) FROM attack_logs WHERE anomaly = 1")
     total_anomalies = cursor.fetchone()[0]
 
-    # Average risk score
     cursor.execute("SELECT AVG(risk_score) FROM attack_logs")
     avg_risk = cursor.fetchone()[0]
     avg_risk = round(avg_risk, 2) if avg_risk else 0
 
-    # Most frequent attack type
     cursor.execute("""
         SELECT attack_type, COUNT(*) as count
         FROM attack_logs
@@ -87,6 +114,9 @@ def get_analytics():
         "average_risk_score": avg_risk,
         "most_frequent_attack": most_frequent_attack
     }
+
+
+# ---------------- DISTRIBUTION ----------------
 def get_attack_distribution():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -100,8 +130,4 @@ def get_attack_distribution():
     rows = cursor.fetchall()
     conn.close()
 
-    distribution = {}
-    for row in rows:
-        distribution[row[0]] = row[1]
-
-    return distribution
+    return {row[0]: row[1] for row in rows}
